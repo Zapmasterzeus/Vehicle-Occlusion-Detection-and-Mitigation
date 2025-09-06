@@ -25,7 +25,7 @@ def process_frames(input_dir, output_dir, midas_json_path):
     with open(midas_json_path, 'r') as f:
         data = json.load(f)
     frames = data['frames']
-    tracker = DeepSort(max_age=30, n_init=1)
+    tracker = DeepSort(max_age=60, n_init=1)
     class_names = [
         "person", "bike", "car", "motor", "bus", "train", "truck", "traffic light", "traffic sign", "rider"
     ]

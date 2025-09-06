@@ -36,7 +36,7 @@ def generate_json_for_image(image_path):
     os.makedirs(img_input_dir, exist_ok=True)
     os.makedirs(img_output_dir, exist_ok=True)
     
-    model = YOLO('runs/detect/train3/weights/best.pt')
+    model = YOLO('runs/detect/train7/weights/best.pt')
     
     import shutil
     try:

@@ -118,6 +118,27 @@ def aggregate_json_files(json_dir, output_json_path):
     print(f"Aggregated JSON saved to: {output_json_path}")
     return True
 
+def run_advanced_occlusion_detection(deepsort_json: str):
+    """Run advanced occlusion detection on DeepSORT output."""
+    try:
+        print("\n========= Running Advanced Occlusion Detection =========")
+        cmd = [
+            sys.executable,
+            "script-video-pipeline/advanced_occlusion.py",
+            deepsort_json
+        ]
+        result = subprocess.run(cmd, cwd=os.path.dirname(os.path.abspath(__file__)))
+        if result.returncode == 0:
+            print("Advanced occlusion detection completed successfully")
+            return True
+        else:
+            print("Error running advanced occlusion detection")
+            return False
+    except Exception as e:
+        print(f"Error in advanced occlusion detection: {e}")
+        return False
+
+
 # --- MAIN PIPELINE ---
 
 def process_video(video_path):
@@ -221,10 +242,11 @@ def process_video(video_path):
         shutil.copy2(pred_json_src, pred_json_dst)
     clear_output_dir()
     print("\n========= Finished DeepSORT Tracking =========\n")
-    # Step 6: Clean up temp directory
-    # --- Run occlusion detection on DeepSORT output ---
+    # Step 6: Preliminary Occlusion Detection
     deepsort_json = os.path.join(output_dir, "deepsort_output.json")
-    run_model_script("script-video-pipeline/occlusion_detection.py", deepsort_json)
+    if not run_advanced_occlusion_detection(deepsort_json):
+        print("Falling back to basic occlusion detection")
+        run_model_script("script-video-pipeline/occlusion_detection.py", deepsort_json)
     t=os.path.join(temp_dir, "input")
     shutil.rmtree(t)
     return True

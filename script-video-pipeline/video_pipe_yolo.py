@@ -25,7 +25,7 @@ def draw_minimal_bbox(img, x1, y1, x2, y2, class_name, color=(0, 255, 0)):
 
 def process_frames(input_dir, output_dir, fps=30):
     """Process all frames in input_dir using YOLO, save annotated frames back, and output a JSON file with per-frame predictions."""
-    model = YOLO('runs/detect/train3/weights/best.pt')
+    model = YOLO('runs/detect/train7/weights/best.pt')
     frame_files = sorted([f for f in os.listdir(input_dir) if f.startswith('frame_') and f.endswith('.jpg')])
     if not frame_files:
         print("Error: No frame files found in the selected directory")
