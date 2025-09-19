@@ -48,7 +48,11 @@ def process_frames(input_dir, output_dir, fps=30):
         results = model(frame_path)
         result = results[0]
         objects = []
+        CONFIDENCE_THRESHOLD = 0.5  # Set your threshold here
         for idx, box in enumerate(result.boxes):
+            conf = float(box.conf[0])
+            if conf < CONFIDENCE_THRESHOLD:
+                continue  # Skip this detection
             class_id = int(box.cls[0])
             class_name = result.names[class_id]
             x1, y1, x2, y2 = map(float, box.xyxy[0])

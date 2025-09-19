@@ -16,7 +16,7 @@ os.makedirs(VID_INPUT_DIR, exist_ok=True)
 os.makedirs(OUTPUTS_VID_DIR, exist_ok=True)
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-for model in ['yolo', 'seg', 'midas', 'deepsort']:
+for model in ['yolo', 'seg', 'midas', 'deepsort', 'aod']:
     os.makedirs(os.path.join(OUTPUTS_VID_DIR, model, 'vid'), exist_ok=True)
     os.makedirs(os.path.join(OUTPUTS_VID_DIR, model, 'json'), exist_ok=True)
 
@@ -29,6 +29,7 @@ def copy_model_json_to_output(model, src_dir, dst_dir, vidname):
         'seg': 'seg_output.json',
         'midas': 'midas_output.json',
         'deepsort': 'deepsort_output.json',
+        'aod': 'aod_output.json'
     }
     main_json = model_json_map.get(model)
     if main_json:
@@ -118,25 +119,6 @@ def aggregate_json_files(json_dir, output_json_path):
     print(f"Aggregated JSON saved to: {output_json_path}")
     return True
 
-def run_advanced_occlusion_detection(deepsort_json: str):
-    """Run advanced occlusion detection on DeepSORT output."""
-    try:
-        print("\n========= Running Advanced Occlusion Detection =========")
-        cmd = [
-            sys.executable,
-            "script-video-pipeline/advanced_occlusion.py",
-            deepsort_json
-        ]
-        result = subprocess.run(cmd, cwd=os.path.dirname(os.path.abspath(__file__)))
-        if result.returncode == 0:
-            print("Advanced occlusion detection completed successfully")
-            return True
-        else:
-            print("Error running advanced occlusion detection")
-            return False
-    except Exception as e:
-        print(f"Error in advanced occlusion detection: {e}")
-        return False
 
 
 # --- MAIN PIPELINE ---
@@ -144,6 +126,12 @@ def run_advanced_occlusion_detection(deepsort_json: str):
 def process_video(video_path):
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     temp_dir = os.path.join(TEMP_DIR, video_name)
+    if os.path.exists(temp_dir):
+        print(f"Cleaning up existing directory: {temp_dir}")
+        shutil.rmtree(temp_dir)
+    
+    # Create fresh directory
+    os.makedirs(temp_dir, exist_ok=True)
     input_dir = os.path.join(temp_dir, 'input')
     output_dir = os.path.join(temp_dir, 'output')
     os.makedirs(input_dir, exist_ok=True)
@@ -168,9 +156,15 @@ def process_video(video_path):
         'deepsort': {
             'video': os.path.join(OUTPUTS_VID_DIR, 'deepsort', 'vid', f"{video_name}.mp4"),
             'json': os.path.join(OUTPUTS_VID_DIR, 'deepsort', 'json', f"{video_name}.json")
+        },
+        'aod': {
+            'video': os.path.join(OUTPUTS_VID_DIR, 'aod', 'vid', f"{video_name}.mp4"),
+            'json': os.path.join(OUTPUTS_VID_DIR, 'aod', 'json', f"{video_name}.json")
         }
     }
 
+    # Clean up temp directory if it exists
+    
     # Step 1: Extract frames to input_dir
     if not extract_frames(video_path, input_dir):
         return False
@@ -224,30 +218,29 @@ def process_video(video_path):
     if not reconstruct_video(output_dir, output_paths['deepsort']['video'], fps):
         return False
     copy_model_json_to_output('deepsort', output_dir, os.path.join(OUTPUTS_VID_DIR, 'deepsort', 'json'), video_name)
-    last_img_src = os.path.join(output_dir, "last_frame.jpg")
-    last_img_dst = os.path.join(os.path.dirname(output_paths['deepsort']['video']), f"{video_name}_last.jpg")
-    if os.path.exists(last_img_src):
-        shutil.copy2(last_img_src, last_img_dst)
-    last_json_src = os.path.join(output_dir, "last_frame.json")
-    last_json_dst = os.path.join(os.path.dirname(output_paths['deepsort']['json']), f"{video_name}_last.json")
-    if os.path.exists(last_json_src):
-        shutil.copy2(last_json_src, last_json_dst)
-    pred_img_src = os.path.join(output_dir, "deepsort_preds.mp4")
-    pred_img_dst = os.path.join(os.path.dirname(output_paths['deepsort']['video']), f"{video_name}_preds.mp4")
-    if os.path.exists(pred_img_src):
-        shutil.copy2(pred_img_src, pred_img_dst)
-    pred_json_src = os.path.join(output_dir, "deepsort_preds.json")
-    pred_json_dst = os.path.join(os.path.dirname(output_paths['deepsort']['json']), f"{video_name}_preds.json")
-    if os.path.exists(pred_json_src):
-        shutil.copy2(pred_json_src, pred_json_dst)
+    
     clear_output_dir()
     print("\n========= Finished DeepSORT Tracking =========\n")
-    # Step 6: Preliminary Occlusion Detection
-    deepsort_json = os.path.join(output_dir, "deepsort_output.json")
-    if not run_advanced_occlusion_detection(deepsort_json):
+    # Step 6: Run Advanced Occlusion Detection
+    print("\n========= Starting Advanced Occlusion Detection =========\n")
+    if not run_model_script(
+        "script-video-pipeline/advanced_occlusion.py", 
+        input_dir, 
+        output_dir, 
+        os.path.join(output_dir, "deepsort_output.json")
+    ):
         print("Falling back to basic occlusion detection")
-        run_model_script("script-video-pipeline/occlusion_detection.py", deepsort_json)
-    t=os.path.join(temp_dir, "input")
+        run_model_script("script-video-pipeline/occlusion_detection.py", os.path.join(output_dir, "deepsort_output.json"))
+    
+    # Reconstruct AOD video
+    if not reconstruct_video(output_dir, output_paths['aod']['video'], fps):
+        return False
+    
+    # Copy AOD JSON output
+    copy_model_json_to_output('aod', output_dir, os.path.join(OUTPUTS_VID_DIR, 'aod', 'json'), video_name)
+    
+    # Clean up
+    t = os.path.join(temp_dir, "input")
     shutil.rmtree(t)
     return True
 
