@@ -238,7 +238,7 @@ def process_video(video_path):
     
     # Copy AOD JSON output
     copy_model_json_to_output('aod', output_dir, os.path.join(OUTPUTS_VID_DIR, 'aod', 'json'), video_name)
-    
+    clear_output_dir()
     # Clean up
     t = os.path.join(temp_dir, "input")
     shutil.rmtree(t)

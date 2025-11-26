@@ -23,7 +23,7 @@ def draw_minimal_bbox(img, x1, y1, x2, y2, class_name, color=(0, 255, 0)):
     cv2.putText(img, class_name, (x1, y1 - 5), font, font_scale, (0, 0, 0), thickness)
     return img
 
-def process_frames(input_dir, output_dir, fps=30):
+def process_frames(input_dir, output_dir, fps=30, confidence_threshold=0.5):
     """Process all frames in input_dir using YOLO, save annotated frames back, and output a JSON file with per-frame predictions."""
     model = YOLO('runs/detect/train7/weights/best.pt')
     frame_files = sorted([f for f in os.listdir(input_dir) if f.startswith('frame_') and f.endswith('.jpg')])
@@ -48,10 +48,9 @@ def process_frames(input_dir, output_dir, fps=30):
         results = model(frame_path)
         result = results[0]
         objects = []
-        CONFIDENCE_THRESHOLD = 0.5  # Set your threshold here
         for idx, box in enumerate(result.boxes):
             conf = float(box.conf[0])
-            if conf < CONFIDENCE_THRESHOLD:
+            if conf < confidence_threshold:
                 continue  # Skip this detection
             class_id = int(box.cls[0])
             class_name = result.names[class_id]

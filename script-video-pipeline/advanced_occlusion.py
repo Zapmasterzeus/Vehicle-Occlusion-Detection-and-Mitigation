@@ -17,24 +17,27 @@ def process_frames(input_dir: str, output_dir: str, deepsort_json: str):
     os.makedirs(output_dir, exist_ok=True)
     
     # Process each frame
-    for frame in data.get('frames', []):
-        if 'objects' in frame and 'name' in frame:
-            # Get corresponding image path
-            img_path = os.path.join(input_dir, frame['name'])
-            if not os.path.exists(img_path):
-                print(f"Warning: Image {img_path} not found")
-                continue
-                
-            # Run occlusion detection
-            frame_objects = frame['objects']
-            processed_objects = detector.detect_occlusions(
-                frame_objects,
-                image_path=img_path,
-                output_dir=output_dir
-            )
-            
-            # Update frame with processed objects
-            frame['objects'] = processed_objects
+    for frame_idx, frame in enumerate(data.get('frames', [])):
+        if 'objects' not in frame:
+            continue
+        # Prefer explicit name if present; otherwise, fall back to sequential filename
+        frame_file = frame.get('name', f"frame_{frame_idx:04d}.jpg")
+        img_path = os.path.join(input_dir, frame_file)
+        if not os.path.exists(img_path):
+            print(f"Warning: Image {img_path} not found")
+            continue
+
+        # Run occlusion detection
+        frame_objects = frame['objects']
+        processed_objects = detector.detect_occlusions(
+            frame_objects,
+            image_path=img_path,
+            output_dir=output_dir
+        )
+
+        # Update frame with processed objects and persist the frame name for downstream steps
+        frame['objects'] = processed_objects
+        frame.setdefault('name', frame_file)
     
     # Save updated JSON
     output_json = os.path.join(output_dir, 'aod_output.json')

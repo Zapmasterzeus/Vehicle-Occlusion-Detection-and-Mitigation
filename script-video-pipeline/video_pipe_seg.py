@@ -110,6 +110,8 @@ def process_frames(input_dir, output_dir, yolo_json_path):
                     mask_resized = cv2.resize(best_mask, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
                     full_mask = np.zeros((img_height, img_width), dtype=np.uint8)
                     full_mask[y1:y2, x1:x2][mask_resized > 0] = 1
+                    kernel = np.ones((3, 3), np.uint8)
+                    full_mask = cv2.morphologyEx(full_mask, cv2.MORPH_OPEN, kernel)
                     polygon = mask_to_polygon(full_mask)
                     if polygon:
                         base_color = class_colors.get(category, (255, 255, 255))
